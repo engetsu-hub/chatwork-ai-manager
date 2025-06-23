@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatWork AI Manager</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> ChatWork AI Manager</h1>
+                <div class="header-controls">
+                    <div class="status-indicator" id="statusIndicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">接続中...</span>
+                    </div>
+                    <button id="refreshBtn" class="btn btn-outline">
+                        <i class="fas fa-sync-alt"></i> 更新
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <!-- サマリーカード -->
+            <section class="summary-section">
+                <div class="card-grid">
+                    <div class="summary-card clickable" onclick="showMonitoredRooms()" title="クリックで詳細を表示">
+                        <div class="card-icon bg-blue">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>監視中ルーム</h3>
+                            <div class="card-value" id="monitoredRooms">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card clickable" onclick="showProcessedMessages()" title="クリックで詳細を表示">
+                        <div class="card-icon bg-green">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>処理済みメッセージ</h3>
+                            <div class="card-value" id="processedMessages">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card clickable" onclick="showPendingAlerts()" title="クリックで詳細を表示">
+                        <div class="card-icon bg-orange">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>未処理アラート</h3>
+                            <div class="card-value" id="pendingAlerts">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card clickable" onclick="showHighPriorityAlerts()" title="クリックで詳細を表示">
+                        <div class="card-icon bg-red">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>高優先度</h3>
+                            <div class="card-value" id="highPriorityAlerts">-</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- タブナビゲーション -->
+            <section class="tabs-section">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="alerts">
+                        <i class="fas fa-bell"></i> アラート
+                    </button>
+                    <button class="tab-btn" data-tab="messages">
+                        <i class="fas fa-comments"></i> メッセージ
+                    </button>
+                    <button class="tab-btn" data-tab="analyzer">
+                        <i class="fas fa-brain"></i> 分析ツール
+                    </button>
+                    <button class="tab-btn" data-tab="deleted">
+                        <i class="fas fa-trash-alt"></i> 削除ログ
+                    </button>
+                    <button class="tab-btn" data-tab="settings">
+                        <i class="fas fa-cog"></i> 設定
+                    </button>
+                </div>
+            </section>
+
+            <!-- タブコンテンツ -->
+            <section class="tab-content">
+                <!-- アラートタブ -->
+                <div id="alerts" class="tab-panel active">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-bell"></i> 未処理アラート</h2>
+                        <div class="panel-actions">
+                            <button id="forceCheckBtn" class="btn btn-outline">
+                                <i class="fas fa-search"></i> 強制チェック
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alerts-container">
+                        <div id="alertsList" class="alerts-list">
+                            <!-- アラートアイテムが動的に追加される -->
+                        </div>
+                        
+                        <div id="noAlerts" class="empty-state" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>未処理アラートはありません</h3>
+                            <p>すべてのメッセージが処理済みです</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- メッセージタブ -->
+                <div id="messages" class="tab-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-comments"></i> 最近のメッセージ</h2>
+                        <div class="panel-actions">
+                            <div class="custom-select-container">
+                                <div id="roomSelect" class="custom-select">
+                                    <div class="select-trigger">
+                                        <span>ルームを選択...</span>
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                    <div class="select-options">
+                                        <!-- カテゴリとルームが動的に追加される -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="messages-container">
+                        <div id="messagesList" class="messages-list">
+                            <!-- メッセージアイテムが動的に追加される -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析ツールタブ -->
+                <div id="analyzer" class="tab-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-brain"></i> メッセージ分析ツール</h2>
+                    </div>
+                    
+                    <div class="analyzer-container">
+                        <div class="input-section">
+                            <div class="form-group">
+                                <label for="analyzeText">分析するテキスト</label>
+                                <textarea 
+                                    id="analyzeText" 
+                                    class="form-textarea" 
+                                    rows="6" 
+                                    placeholder="ここにメッセージを入力してください...">明日までに資料を作成してください。[To:123456] 
+確認事項が3つあります。
+・デザインの方向性について
+・納期の調整
+・予算の見直し</textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="senderName">送信者名</label>
+                                    <input type="text" id="senderName" class="form-input" value="テストユーザー">
+                                </div>
+                                <div class="form-group">
+                                    <button id="analyzeBtn" class="btn btn-primary">
+                                        <i class="fas fa-search"></i> 分析実行
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="analysisResult" class="analysis-result" style="display: none;">
+                            <!-- 分析結果が表示される -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 削除ログタブ -->
+                <div id="deleted" class="tab-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-trash-alt"></i> 削除メッセージログ</h2>
+                        <div class="panel-actions">
+                            <div class="custom-select-container">
+                                <div id="deletedRoomSelect" class="custom-select">
+                                    <div class="select-trigger">
+                                        <span>全ルーム</span>
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                    <div class="select-options">
+                                        <div class="select-option" data-value="">全ルーム</div>
+                                        <!-- カテゴリとルームが動的に追加される -->
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="refreshDeletedBtn" class="btn btn-outline">
+                                <i class="fas fa-sync-alt"></i> 更新
+                            </button>
+                            <button id="clearDeletedBtn" class="btn btn-outline" style="color: #dc3545; border-color: #dc3545;">
+                                <i class="fas fa-trash"></i> クリア
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="deleted-container">
+                        <div id="deletedMessagesList" class="deleted-list">
+                            <!-- 削除メッセージが動的に追加される -->
+                        </div>
+                        
+                        <div id="noDeletedMessages" class="empty-state" style="display: none;">
+                            <i class="fas fa-info-circle"></i>
+                            <h3>削除されたメッセージはありません</h3>
+                            <p>ChatWorkで削除されたメッセージが検出されるとここに表示されます</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 設定タブ -->
+                <div id="settings" class="tab-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-cog"></i> システム設定</h2>
+                    </div>
+                    
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h3>監視設定</h3>
+                            <div class="form-group">
+                                <label for="monitoringInterval">監視間隔（秒）</label>
+                                <input type="number" id="monitoringInterval" class="form-input" value="30">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>アラート設定</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="highPriorityThreshold">高優先度閾値（分）</label>
+                                    <input type="number" id="highPriorityThreshold" class="form-input" value="30">
+                                </div>
+                                <div class="form-group">
+                                    <label for="normalPriorityThreshold">通常優先度閾値（時間）</label>
+                                    <input type="number" id="normalPriorityThreshold" class="form-input" value="2">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-actions">
+                            <button id="saveSettingsBtn" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 設定を保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ローディングオーバーレイ -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>処理中...</p>
+        </div>
+    </div>
+
+    <!-- トーストメッセージ -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- 詳細情報モーダル -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">詳細情報</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 詳細内容が動的に挿入される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

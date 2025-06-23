@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatWork AI Manager - 起動中</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        .loading-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 2rem;
+        }
+        
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-top: 1rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .error-message {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .retry-button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .retry-button:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="logo">🤖</div>
+        <h1 class="title">ChatWork AI Manager</h1>
+        <p class="subtitle">AIによるメッセージ監視・タスク管理システム</p>
+        
+        <div class="loading-spinner"></div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="status" id="statusText">初期化中...</div>
+        
+        <div class="error-message" id="errorMessage">
+            <p>バックエンドサーバーへの接続に失敗しました。</p>
+            <p>Pythonがインストールされているか確認してください。</p>
+            <button class="retry-button" onclick="retryConnection()">再試行</button>
+        </div>
+    </div>
+
+    <script>
+        let progress = 0;
+        let maxRetries = 10;
+        let currentRetry = 0;
+        
+        const statusMessages = [
+            'Pythonバックエンドを起動中...',
+            'AIエンジンを初期化中...',
+            'ChatWork APIに接続中...',
+            'データベースを準備中...',
+            'ダッシュボードを読み込み中...'
+        ];
+        
+        function updateProgress() {
+            const progressFill = document.getElementById('progressFill');
+            const statusText = document.getElementById('statusText');
+            
+            progress += 20;
+            progressFill.style.width = progress + '%';
+            
+            if (progress <= 100) {
+                const messageIndex = Math.floor((progress - 20) / 20);
+                statusText.textContent = statusMessages[messageIndex] || '起動中...';
+            }
+            
+            if (progress >= 100) {
+                statusText.textContent = 'Webダッシュボードに接続中...';
+                checkBackendStatus();
+            } else {
+                setTimeout(updateProgress, 1000);
+            }
+        }
+        
+        function checkBackendStatus() {
+            fetch('http://127.0.0.1:8000/api/status')
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById('statusText').textContent = '接続成功！ダッシュボードに移動中...';
+                        setTimeout(() => {
+                            window.location.href = 'http://127.0.0.1:8000';
+                        }, 1000);
+                    } else {
+                        throw new Error('Backend not ready');
+                    }
+                })
+                .catch(error => {
+                    currentRetry++;
+                    if (currentRetry < maxRetries) {
+                        document.getElementById('statusText').textContent = 
+                            `接続を再試行中... (${currentRetry}/${maxRetries})`;
+                        setTimeout(checkBackendStatus, 2000);
+                    } else {
+                        showError();
+                    }
+                });
+        }
+        
+        function showError() {
+            document.querySelector('.loading-spinner').style.display = 'none';
+            document.getElementById('statusText').textContent = '接続に失敗しました';
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+        
+        function retryConnection() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.querySelector('.loading-spinner').style.display = 'block';
+            document.getElementById('progressFill').style.width = '0%';
+            progress = 0;
+            currentRetry = 0;
+            
+            // バックエンドの再起動を試行
+            if (window.electronAPI) {
+                window.electronAPI.restartBackend();
+            }
+            
+            setTimeout(updateProgress, 1000);
+        }
+        
+        // 初期化開始
+        setTimeout(updateProgress, 500);
+        
+        // Electronの場合はバックエンドステータスを監視
+        if (window.electronAPI) {
+            setInterval(async () => {
+                try {
+                    const status = await window.electronAPI.getBackendStatus();
+                    if (!status.running && currentRetry === 0) {
+                        document.getElementById('statusText').textContent = 'バックエンドを再起動中...';
+                        await window.electronAPI.restartBackend();
+                    }
+                } catch (error) {
+                    console.error('Failed to check backend status:', error);
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
