@@ -87,6 +87,9 @@
                     <button class="tab-btn" data-tab="deleted">
                         <i class="fas fa-trash-alt"></i> 削除ログ
                     </button>
+                    <button class="tab-btn" data-tab="rooms">
+                        <i class="fas fa-users"></i> ルーム管理
+                    </button>
                     <button class="tab-btn" data-tab="settings">
                         <i class="fas fa-cog"></i> 設定
                     </button>
@@ -122,25 +125,37 @@
                 <!-- メッセージタブ -->
                 <div id="messages" class="tab-panel">
                     <div class="panel-header">
-                        <h2><i class="fas fa-comments"></i> 最近のメッセージ</h2>
+                        <h2><i class="fas fa-comments"></i> 新着メッセージ</h2>
                         <div class="panel-actions">
-                            <div class="custom-select-container">
-                                <div id="roomSelect" class="custom-select">
-                                    <div class="select-trigger">
-                                        <span>ルームを選択...</span>
-                                        <i class="fas fa-chevron-down"></i>
-                                    </div>
-                                    <div class="select-options">
-                                        <!-- カテゴリとルームが動的に追加される -->
-                                    </div>
-                                </div>
+                            <div class="select-container">
+                                <select id="messageRoomFilter" class="form-select">
+                                    <option value="">すべてのルーム</option>
+                                    <!-- ルームが動的に追加される -->
+                                </select>
                             </div>
+                            <div class="select-container">
+                                <select id="messageSortOrder" class="form-select">
+                                    <option value="time">時間順（新しい順）</option>
+                                    <option value="room">ルーム別</option>
+                                    <option value="priority">優先度順</option>
+                                    <option value="unread">未読優先</option>
+                                </select>
+                            </div>
+                            <button id="refreshMessagesBtn" class="btn btn-outline">
+                                <i class="fas fa-sync-alt"></i> 更新
+                            </button>
                         </div>
                     </div>
                     
                     <div class="messages-container">
                         <div id="messagesList" class="messages-list">
-                            <!-- メッセージアイテムが動的に追加される -->
+                            <!-- 新着メッセージが動的に追加される -->
+                        </div>
+                        
+                        <div id="noMessages" class="empty-state" style="display: none;">
+                            <i class="fas fa-inbox"></i>
+                            <h3>新着メッセージがありません</h3>
+                            <p>新しいメッセージが届くとここに表示されます</p>
                         </div>
                     </div>
                 </div>
@@ -190,17 +205,11 @@
                     <div class="panel-header">
                         <h2><i class="fas fa-trash-alt"></i> 削除メッセージログ</h2>
                         <div class="panel-actions">
-                            <div class="custom-select-container">
-                                <div id="deletedRoomSelect" class="custom-select">
-                                    <div class="select-trigger">
-                                        <span>全ルーム</span>
-                                        <i class="fas fa-chevron-down"></i>
-                                    </div>
-                                    <div class="select-options">
-                                        <div class="select-option" data-value="">全ルーム</div>
-                                        <!-- カテゴリとルームが動的に追加される -->
-                                    </div>
-                                </div>
+                            <div class="select-container">
+                                <select id="deletedRoomSelect" class="form-select">
+                                    <option value="">全ルーム</option>
+                                    <!-- カテゴリとルームが動的に追加される -->
+                                </select>
                             </div>
                             <button id="refreshDeletedBtn" class="btn btn-outline">
                                 <i class="fas fa-sync-alt"></i> 更新
@@ -224,6 +233,41 @@
                     </div>
                 </div>
 
+                <!-- ルーム管理タブ -->
+                <div id="rooms" class="tab-panel">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-users"></i> ルーム管理</h2>
+                        <div class="panel-actions">
+                            <button id="createRoomBtn" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> 新規グループチャット作成
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="rooms-management-container">
+                        <!-- 既存ルーム一覧 -->
+                        <div class="rooms-list-section">
+                            <h3>既存のルーム</h3>
+                            <div class="rooms-filter">
+                                <input type="text" id="roomSearchInput" class="form-input" placeholder="ルーム名で検索...">
+                                <select id="roomCategoryFilter" class="form-select">
+                                    <option value="">すべてのカテゴリ</option>
+                                </select>
+                                <select id="roomSortSelect" class="form-select">
+                                    <option value="name">名前順</option>
+                                    <option value="updated">更新順</option>
+                                    <option value="pinned">ピン留め優先</option>
+                                    <option value="members">メンバー数順</option>
+                                    <option value="unread">未読メッセージ順</option>
+                                </select>
+                            </div>
+                            <div id="roomsManagementList" class="rooms-management-list">
+                                <!-- ルーム一覧が動的に表示される -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 設定タブ -->
                 <div id="settings" class="tab-panel">
                     <div class="panel-header">
@@ -236,6 +280,24 @@
                             <div class="form-group">
                                 <label for="monitoringInterval">監視間隔（秒）</label>
                                 <input type="number" id="monitoringInterval" class="form-input" value="30">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h3>監視ルーム選択</h3>
+                            <div class="form-group">
+                                <label>監視するルームを選択してください</label>
+                                <div id="monitoredRoomsContainer" class="monitored-rooms-container">
+                                    <!-- ルームチェックボックスが動的に追加される -->
+                                </div>
+                                <div class="room-selection-controls">
+                                    <button id="selectAllRoomsBtn" class="btn btn-outline btn-sm">
+                                        <i class="fas fa-check-square"></i> すべて選択
+                                    </button>
+                                    <button id="deselectAllRoomsBtn" class="btn btn-outline btn-sm">
+                                        <i class="fas fa-square"></i> すべて解除
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -284,6 +346,119 @@
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- 詳細内容が動的に挿入される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- チャット表示モーダル -->
+    <div id="chatModal" class="modal">
+        <div class="modal-content chat-modal-content">
+            <div class="modal-header">
+                <h2 id="chatModalTitle"><i class="fas fa-comments"></i> チャット</h2>
+                <button class="modal-close" onclick="dashboard.closeChatModal()">&times;</button>
+            </div>
+            <div class="modal-body chat-modal-body">
+                <div id="chatMessagesContainer" class="chat-messages-container">
+                    <!-- チャットメッセージが表示される -->
+                </div>
+                <div class="chat-input-container">
+                    <!-- 返信中の表示 -->
+                    <div id="replyingTo" class="replying-to" style="display: none;">
+                        <div class="reply-header">
+                            <i class="fas fa-reply"></i>
+                            <span id="replyToText">返信中...</span>
+                            <button id="cancelReplyBtn" class="btn-cancel-reply">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="replyMessagePreview" class="reply-preview"></div>
+                    </div>
+                    
+                    <!-- TO機能 -->
+                    <div class="chat-to-container">
+                        <label for="toMemberSelect" class="to-label">TO:</label>
+                        <select id="toMemberSelect" class="form-select to-select" multiple>
+                            <!-- メンバーオプションが動的に追加される -->
+                        </select>
+                        <button id="clearToBtn" class="btn btn-outline btn-sm">
+                            <i class="fas fa-times"></i> クリア
+                        </button>
+                    </div>
+                    
+                    <!-- ファイル添付プレビュー -->
+                    <div id="filePreview" class="file-preview" style="display: none;">
+                        <div class="file-item">
+                            <i class="fas fa-image"></i>
+                            <span id="fileName"></span>
+                            <button id="removeFileBtn" class="btn-remove-file">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- メッセージ入力エリア -->
+                    <div class="chat-input-wrapper">
+                        <div class="input-tools">
+                            <button id="attachFileBtn" class="btn btn-outline btn-sm" title="画像を添付">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                        </div>
+                        <textarea id="chatMessageInput" class="chat-input" placeholder="メッセージを入力..." rows="3"></textarea>
+                        <button id="sendMessageBtn" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> 送信
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新規ルーム作成モーダル -->
+    <div id="createRoomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus-circle"></i> 新規グループチャット作成</h2>
+                <button class="modal-close" onclick="dashboard.closeCreateRoomModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createRoomForm">
+                    <div class="form-group">
+                        <label for="roomName">ルーム名 <span class="required">*</span></label>
+                        <input type="text" id="roomName" class="form-input" required placeholder="例: プロジェクトA 開発チーム">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="roomDescription">説明</label>
+                        <textarea id="roomDescription" class="form-textarea" rows="3" placeholder="ルームの説明を入力..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>メンバー選択</label>
+                        <div class="member-search">
+                            <input type="text" id="memberSearchInput" class="form-input" placeholder="名前で検索...">
+                        </div>
+                        <div id="membersList" class="members-list">
+                            <!-- メンバーリストが動的に表示される -->
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>選択されたメンバー</label>
+                        <div id="selectedMembers" class="selected-members">
+                            <p class="empty-text">メンバーが選択されていません</p>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="dashboard.closeCreateRoomModal()">
+                            キャンセル
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> ルームを作成
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

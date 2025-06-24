@@ -479,6 +479,210 @@ async def quote_message(request: MessageQuoteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =====================
+# 監視ルーム関連エンドポイント
+# =====================
+
+@app.get("/api/monitored-rooms")
+async def get_monitored_rooms():
+    """監視中のルーム一覧を取得"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        # 現在監視中のルームIDリストを取得
+        monitored_rooms = list(ai_manager.config.monitored_rooms)
+        return {"monitored_rooms": monitored_rooms}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/monitored-rooms")
+async def update_monitored_rooms(request: dict):
+    """監視ルームを更新"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        room_ids = request.get("room_ids", [])
+        
+        # 監視ルームを更新
+        ai_manager.config.monitored_rooms = set(room_ids)
+        
+        # 設定を保存（必要に応じて実装）
+        # TODO: 設定ファイルへの保存を実装
+        
+        return {"success": True, "monitored_rooms": list(ai_manager.config.monitored_rooms)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =====================
+# ルーム管理エンドポイント
+# =====================
+
+@app.get("/api/contacts")
+async def get_contacts():
+    """コンタクト一覧を取得"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        contacts = await ai_manager.chatwork_api.get_contacts()
+        return {"contacts": contacts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/rooms/create")
+async def create_room(request: dict):
+    """新規ルームを作成"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        name = request.get("name")
+        description = request.get("description", "")
+        member_ids = request.get("member_ids", [])
+        
+        if not name:
+            raise HTTPException(status_code=400, detail="Room name is required")
+        
+        if not member_ids:
+            raise HTTPException(status_code=400, detail="At least one member is required")
+        
+        # ChatWork APIを使用してルームを作成
+        result = await ai_manager.chatwork_api.create_room(
+            name=name,
+            description=description,
+            member_ids=member_ids
+        )
+        
+        return {"success": True, "room": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/rooms/{room_id}/members")
+async def get_room_members(room_id: str):
+    """ルームのメンバー一覧を取得"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        members = await ai_manager.chatwork_api.get_room_members(room_id)
+        return {"members": members}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/rooms/{room_id}/members")
+async def update_room_members(room_id: str, request: dict):
+    """ルームのメンバーを更新"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        member_ids = request.get("member_ids", [])
+        # ChatWork APIを使用してメンバーを更新
+        result = await ai_manager.chatwork_api.update_room_members(room_id, member_ids)
+        return {"success": True, "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/rooms/{room_id}/messages")
+async def get_room_messages(room_id: str, limit: int = 50):
+    """ルームのメッセージ一覧を取得"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        messages = await ai_manager.chatwork_api.get_messages(room_id, force=1)
+        
+        # メッセージを辞書形式に変換
+        message_list = []
+        for msg in messages[-limit:]:  # 最新のメッセージを取得
+            message_list.append({
+                "message_id": msg.message_id,
+                "account": {
+                    "account_id": msg.account.account_id,
+                    "name": msg.account.name,
+                    "avatar_image_url": msg.account.avatar_image_url
+                },
+                "body": msg.body,
+                "send_time": msg.send_time,
+                "update_time": msg.update_time
+            })
+        
+        return {"messages": message_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/rooms/{room_id}/messages")
+async def send_message(room_id: str, request: dict):
+    """ルームにメッセージを送信"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        body = request.get("body")
+        if not body:
+            raise HTTPException(status_code=400, detail="Message body is required")
+        
+        result = await ai_manager.chatwork_api.send_message(room_id, body)
+        return {"success": True, "message_id": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/latest-messages")
+async def get_latest_messages(limit: int = 50):
+    """全ルームから最新メッセージを取得"""
+    if not ai_manager:
+        raise HTTPException(status_code=503, detail="AI Manager not initialized")
+    
+    try:
+        # 監視中のルームから最新メッセージを取得
+        monitored_rooms = list(ai_manager.config.monitored_rooms)
+        all_messages = []
+        
+        # ルーム情報を取得してルーム名を含める
+        rooms = await ai_manager.chatwork_api.get_rooms()
+        room_names = {str(room["room_id"]): room["name"] for room in rooms}
+        
+        for room_id in monitored_rooms:
+            try:
+                messages = await ai_manager.chatwork_api.get_messages(room_id, force=1)
+                
+                # 最新の数件のメッセージのみを取得
+                recent_messages = messages[-5:] if len(messages) > 5 else messages
+                
+                for msg in recent_messages:
+                    message_data = {
+                        "message_id": msg.message_id,
+                        "room_id": msg.room_id,
+                        "room_name": room_names.get(msg.room_id, f"Room {msg.room_id}"),
+                        "account": {
+                            "account_id": msg.account.account_id,
+                            "name": msg.account.name,
+                            "avatar_image_url": msg.account.avatar_image_url
+                        },
+                        "body": msg.body,
+                        "send_time": msg.send_time,
+                        "update_time": msg.update_time,
+                        "is_unread": True,  # 簡易的に全て未読として扱う
+                        "priority": "normal"  # 簡易的に通常優先度として扱う
+                    }
+                    all_messages.append(message_data)
+                    
+            except Exception as e:
+                logger.error(f"Error getting messages for room {room_id}: {e}")
+                continue
+        
+        # 送信時間でソート（新しい順）
+        all_messages.sort(key=lambda x: x["send_time"], reverse=True)
+        
+        # 制限数まで切り詰め
+        latest_messages = all_messages[:limit]
+        
+        return {"messages": latest_messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =====================
 # WebSocket エンドポイント
 # =====================
 

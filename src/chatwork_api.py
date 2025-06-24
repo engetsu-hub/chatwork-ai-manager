@@ -576,6 +576,52 @@ class ChatWorkAPI:
             logger.error(f"Error getting room structure for {room_id}: {e}")
             return {}
     
+    async def get_contacts(self) -> List[Dict[str, Any]]:
+        """コンタクト一覧を取得"""
+        try:
+            response = await self._request('GET', '/contacts')
+            return response
+        except Exception as e:
+            logger.error(f"Error getting contacts: {e}")
+            return []
+    
+    async def create_room(self, name: str, description: str = "", member_ids: List[str] = None) -> Dict[str, Any]:
+        """新規ルームを作成"""
+        try:
+            # メンバーIDをカンマ区切りの文字列に変換
+            members_admin = ",".join(member_ids) if member_ids else ""
+            
+            data = {
+                "name": name,
+                "description": description,
+                "members_admin_ids": members_admin,
+                "icon_preset": "group"  # デフォルトアイコン
+            }
+            
+            response = await self._request('POST', '/rooms', data=data)
+            return response
+        except Exception as e:
+            logger.error(f"Error creating room: {e}")
+            raise
+    
+    
+    async def update_room_members(self, room_id: str, member_ids: List[str]) -> Dict[str, Any]:
+        """ルームのメンバーを更新"""
+        try:
+            # メンバーIDをカンマ区切りの文字列に変換
+            members_admin = ",".join(member_ids) if member_ids else ""
+            
+            data = {
+                "members_admin_ids": members_admin
+            }
+            
+            response = await self._request('PUT', f'/rooms/{room_id}/members', data=data)
+            return response
+        except Exception as e:
+            logger.error(f"Error updating room members: {e}")
+            raise
+    
+    
     async def test_connection(self) -> bool:
         """接続テスト"""
         try:

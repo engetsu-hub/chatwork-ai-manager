@@ -1,12 +1,12 @@
-# Environment variables
-.env
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -19,53 +19,55 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual environment
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+# Virtual Environment
+pip-log.txt
+pip-delete-this-directory.txt
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Logs
-logs/
-*.log
-server.log
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Node.js (for desktop app)
-desktop/node_modules/
-desktop/dist/
-desktop/build/
-
-# Test coverage
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Temporary files
-*.tmp
-*.temp
-
-# Database
+# Project specific
+*.log
+.env
+config.json
 *.db
+*.sqlite
 *.sqlite3
 
-# Secrets and configs
-config/*.json
-!config/example.json
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Sensitive data
+api_keys.txt
+secrets.json
+credentials.json
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# Documentation
+docs/_build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
